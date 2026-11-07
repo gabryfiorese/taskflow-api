@@ -1,0 +1,22 @@
+# Dipendenze installate da npm (pesano GB, si rigenerano con 'npm install')
+node_modules/
+
+# Cartella di output della compilazione TypeScript/Vite (si rigenera con 'npm run build')
+dist/
+
+# Variabili d'ambiente segrete (password, chiavi API) - MAI pubblicare!
+.env
+
+# Database locale SQLite generato da Prisma durante lo sviluppo
+*.db
+prisma/dev.db
+
+# File temporanei o di copertura test
+coverage/
+.DS_Store
+
+# Cartelle create dagli agenti AI dell'IDE (Antigravity/Cursor/Claude)
+.agents/
+.claude/
+.cursor/
+.devin/
