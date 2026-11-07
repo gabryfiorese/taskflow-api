@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'  # ← AGGIORNATO A 22 (richiesto da Vitest 5.x)
+          node-version: '22'
           cache: 'npm'
       
       - name: Install dependencies
@@ -24,6 +24,9 @@ jobs:
       
       - name: Generate Prisma Client
         run: npx prisma generate
+      
+      - name: Create test database
+        run: touch test.db  # ← AGGIUNTO: Crea il file DB vuoto
       
       - name: Run tests
         run: npm test
