@@ -5,6 +5,52 @@ import { authenticate, type AuthRequest } from "../middleware/auth.middleware";
 const router = express.Router();
 router.use(authenticate);
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Task:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         title:
+ *           type: string
+ *         description:
+ *           type: string
+ *           nullable: true
+ *         completed:
+ *           type: boolean
+ *         userId:
+ *           type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
+ * /api/tasks:
+ *   get:
+ *     summary: Lista tutti i task dell'utente autenticato
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Array di task
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Task'
+ *       401:
+ *         description: Token mancante o invalido
+ */
 router.get("/", async (req: AuthRequest, res, next) => {
     try {
         const tasks = await prisma.task.findMany({
@@ -17,6 +63,38 @@ router.get("/", async (req: AuthRequest, res, next) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/tasks:
+ *   post:
+ *     summary: Crea un nuovo task
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Task creato con successo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Task'
+ *       400:
+ *         description: Titolo mancante o non valido
+ *       401:
+ *         description: Token mancante o invalido
+ */
 router.post("/", async (req: AuthRequest, res, next) => {
     try {
         const { title, description } = req.body;
@@ -37,6 +115,46 @@ router.post("/", async (req: AuthRequest, res, next) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/tasks/{id}:
+ *   patch:
+ *     summary: Aggiorna un task esistente
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del task
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               completed:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Task aggiornato con successo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Task'
+ *       401:
+ *         description: Token mancante o invalido
+ *       404:
+ *         description: Task non trovato
+ */
 router.patch("/:id", async (req: AuthRequest, res, next) => {
     try {
         const id = req.params.id as string;
@@ -62,6 +180,29 @@ router.patch("/:id", async (req: AuthRequest, res, next) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/tasks/{id}:
+ *   delete:
+ *     summary: Elimina un task
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del task
+ *     responses:
+ *       204:
+ *         description: Task eliminato con successo
+ *       401:
+ *         description: Token mancante o invalido
+ *       404:
+ *         description: Task non trovato
+ */
 router.delete("/:id", async (req: AuthRequest, res, next) => {
     try {
         const id = req.params.id as string;
