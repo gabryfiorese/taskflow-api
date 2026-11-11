@@ -1,7 +1,10 @@
-import express from "express";
-import { prisma } from "../lib/prisma"; // Singleton
-import { authenticate, type AuthRequest } from "../middleware/auth.middleware";
+import fs from "fs";
+import express, { Request, Response, NextFunction } from "express";
+import { prisma } from "../lib/prisma";
+import { logger } from "../lib/logger";
+import { authenticate } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate";
+import { upload } from "../middleware/upload";
 import { createTaskSchema, updateTaskSchema } from "../schemas/task.schema";
 
 const router = express.Router();
@@ -25,6 +28,9 @@ router.use(authenticate);
  *           type: boolean
  *         userId:
  *           type: string
+ *         attachmentPath:
+ *           type: string
+ *           nullable: true
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -53,7 +59,7 @@ router.use(authenticate);
  *       401:
  *         description: Token mancante o invalido
  */
-router.get("/", async (req: AuthRequest, res, next) => {
+router.get("/", async (req: Request, res: Response, next: NextFunction) => {
     try {
         const tasks = await prisma.task.findMany({
             where: { userId: req.user!.userId },
@@ -97,17 +103,34 @@ router.get("/", async (req: AuthRequest, res, next) => {
  *       401:
  *         description: Token mancante o invalido
  */
-router.post("/", validate(createTaskSchema), async (req: AuthRequest, res, next) => {
-    try {
-        const task = await prisma.task.create({
-            data: { ...req.body, userId: req.user!.userId },
-        });
+router.post(
+    "/",
+    validate(createTaskSchema),
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            logger.debug(
+                { body: req.body, userId: req.user?.userId },
+                "Payload ricevuto per creazione task"
+            );
 
-        res.status(201).json(task);
-    } catch (err) {
-        next(err);
+            const task = await prisma.task.create({
+                data: { ...req.body, userId: req.user!.userId },
+            });
+
+            logger.info(
+                { taskId: task.id, userId: req.user?.userId },
+                "Task creato con successo"
+            );
+            res.status(201).json(task);
+        } catch (err) {
+            logger.error(
+                { userId: req.user?.userId, error: (err as Error).message },
+                "Errore durante creazione task"
+            );
+            next(err);
+        }
     }
-});
+);
 
 /**
  * @swagger
@@ -149,30 +172,51 @@ router.post("/", validate(createTaskSchema), async (req: AuthRequest, res, next)
  *       404:
  *         description: Task non trovato
  */
-router.patch("/:id", validate(updateTaskSchema), async (req: AuthRequest, res, next) => {
-    try {
-        const id = req.params.id as string;
+router.patch(
+    "/:id",
+    validate(updateTaskSchema),
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const id = req.params.id as string;
 
-        // Evita update vuoti
-        if (Object.keys(req.body).length === 0) {
-            return res.status(400).json({ error: "No valid fields to update" });
+            if (Object.keys(req.body).length === 0) {
+                return res
+                    .status(400)
+                    .json({ error: "No valid fields to update" });
+            }
+
+            const updated = await prisma.task.updateMany({
+                where: { id, userId: req.user!.userId },
+                data: req.body,
+            });
+
+            if (updated.count === 0) {
+                logger.warn(
+                    { taskId: id, userId: req.user?.userId },
+                    "Tentativo di aggiornamento: task non trovato"
+                );
+                return res.status(404).json({ error: "Task not found" });
+            }
+
+            const task = await prisma.task.findUnique({ where: { id } });
+            logger.info(
+                { taskId: id, userId: req.user?.userId },
+                "Task aggiornato con successo"
+            );
+            res.json(task);
+        } catch (err) {
+            logger.error(
+                {
+                    taskId: req.params.id,
+                    userId: req.user?.userId,
+                    error: (err as Error).message,
+                },
+                "Errore durante aggiornamento task"
+            );
+            next(err);
         }
-
-        const updated = await prisma.task.updateMany({
-            where: { id, userId: req.user!.userId },
-            data: req.body,
-        });
-
-        if (updated.count === 0) {
-            return res.status(404).json({ error: "Task not found" });
-        }
-
-        const task = await prisma.task.findUnique({ where: { id } });
-        res.json(task);
-    } catch (err) {
-        next(err);
     }
-});
+);
 
 /**
  * @swagger
@@ -197,21 +241,102 @@ router.patch("/:id", validate(updateTaskSchema), async (req: AuthRequest, res, n
  *       404:
  *         description: Task non trovato
  */
-router.delete("/:id", async (req: AuthRequest, res, next) => {
-    try {
-        const id = req.params.id as string;
-        const deleteResult = await prisma.task.deleteMany({
-            where: { id, userId: req.user!.userId },
-        });
+router.delete(
+    "/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const id = req.params.id as string;
+            const deleteResult = await prisma.task.deleteMany({
+                where: { id, userId: req.user!.userId },
+            });
 
-        if (deleteResult.count === 0) {
-            return res.status(404).json({ error: "Task not found" });
+            if (deleteResult.count === 0) {
+                return res.status(404).json({ error: "Task not found" });
+            }
+
+            res.status(204).end();
+        } catch (err) {
+            next(err);
         }
-
-        res.status(204).end();
-    } catch (err) {
-        next(err);
     }
-});
+);
+
+/**
+ * @swagger
+ * /api/tasks/{id}/attachment:
+ *   patch:
+ *     summary: Allega un file a un task esistente
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del task
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Allegato caricato con successo
+ *       400:
+ *         description: File non valido o non fornito
+ *       401:
+ *         description: Token mancante o invalido
+ *       404:
+ *         description: Task non trovato
+ */
+router.patch(
+    "/:id/attachment",
+    upload.single("file"),
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const id = req.params.id as string;
+            const file = req.file;
+
+            if (!file) {
+                return res.status(400).json({ error: "Nessun file ricevuto" });
+            }
+
+            const task = await prisma.task.findUnique({ where: { id } });
+            if (!task || task.userId !== req.user!.userId) {
+                if (fs.existsSync(file.path)) {
+                    fs.unlinkSync(file.path);
+                }
+                return res.status(404).json({ error: "Task non trovato" });
+            }
+
+            const updated = await prisma.task.update({
+                where: { id },
+                data: { attachmentPath: file.path },
+            });
+
+            logger.info(
+                {
+                    taskId: id,
+                    fileName: file.originalname,
+                    userId: req.user!.userId,
+                },
+                "Allegato caricato"
+            );
+            res.json({ message: "Allegato caricato", task: updated });
+        } catch (err) {
+            if (req.file && fs.existsSync(req.file.path)) {
+                fs.unlinkSync(req.file.path);
+            }
+            next(err);
+        }
+    }
+);
 
 export default router;

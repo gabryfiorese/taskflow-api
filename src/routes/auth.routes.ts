@@ -1,8 +1,9 @@
-import express from "express";
+import express, { Router } from "express";
 import { register, login } from "../services/auth.service";
 import { authenticate, type AuthRequest } from "../middleware/auth.middleware";
+import { authLimiter } from "../middleware/rateLimiter";
 
-const router = express.Router();
+const router = Router();
 
 /**
  * @swagger
@@ -32,7 +33,7 @@ const router = express.Router();
  *       400:
  *         description: Email già registrata o dati invalidi
  */
-router.post("/register", async (req, res) => {
+router.post("/register", authLimiter, async (req, res) => {
     try {
         const { email, password, name } = req.body;
         const result = await register(email, password, name);
@@ -67,7 +68,7 @@ router.post("/register", async (req, res) => {
  *       401:
  *         description: Credenziali non valide
  */
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
         const result = await login(email, password);
