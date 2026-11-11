@@ -1,3 +1,12 @@
+// Estendi Express.Request per includere il file di Multer
+declare global {
+  namespace Express {
+    interface Request {
+      file?: Express.Multer.File;
+    }
+  }
+}
+
 import fs from "fs";
 import express, { Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma";
