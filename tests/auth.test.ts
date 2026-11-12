@@ -91,8 +91,10 @@ describe("Task API", () => {
             .set("Authorization", `Bearer ${taskToken}`);
 
         expect(res.status).toBe(200);
-        expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.length).toBeGreaterThan(0);
+        expect(res.body.data).toBeDefined(); // Verifica che esista la proprietà 'data'
+        expect(Array.isArray(res.body.data)).toBe(true); // Verifica che 'data' sia un array
+        expect(res.body.data.length).toBeGreaterThan(0); // Verifica che ci siano task
+        expect(res.body.pagination).toBeDefined(); // Verifica che esista la paginazione
     });
 
     it("updates task completion", async () => {

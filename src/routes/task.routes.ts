@@ -105,13 +105,13 @@ router.use(authenticate);
  */
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { 
-      page = '1', 
-      limit = '10', 
-      search, 
-      projectId, 
-      priority, 
-      completed 
+    const {
+      page = '1',
+      limit = '10',
+      search,
+      projectId,
+      priority,
+      completed
     } = req.query;
 
     const pageNum = parseInt(page as string);
