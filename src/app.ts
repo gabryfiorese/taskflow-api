@@ -7,6 +7,10 @@ import { logger } from "./lib/logger";
 import { generalLimiter } from "./middleware/rateLimiter";
 import authRoutes from "./routes/auth.routes";
 import taskRoutes from "./routes/task.routes"; // ← AGGIUNTO
+import projectRoutes from "./routes/project.routes";
+import tagRoutes from "./routes/tag.routes";
+import collaborationRoutes from "./routes/collaboration.routes";
+import analyticsRoutes from "./routes/analytics.routes";
 
 const app = express();
 
@@ -34,6 +38,10 @@ app.get("/health", (_req, res) => {
 // Route registration
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes); // ← AGGIUNTO
+app.use("/api/projects", projectRoutes);  // ← AGGIUNTO
+app.use("/api/tags", tagRoutes);          // ← AGGIUNTO
+app.use("/api", collaborationRoutes);  // ← AGGIUNTO (le route hanno già /tasks/... nel path)
+app.use("/api/analytics", analyticsRoutes); // ← AGGIUNTO
 
 const swaggerOptions = {
     definition: {

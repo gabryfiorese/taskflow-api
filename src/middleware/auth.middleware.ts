@@ -5,7 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-in-prod";
 
 // Mantieni l'interfaccia per le route
 export interface AuthRequest extends Request {
-    user?: { userId: string; email: string };
+    user?: { userId: string; email: string; name?: string };
 }
 
 // Il middleware usa Request standard, non AuthRequest

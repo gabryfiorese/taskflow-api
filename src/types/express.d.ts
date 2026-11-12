@@ -4,10 +4,10 @@ declare global {
             user?: {
                 userId: string;
                 email: string;
+                name?: string;
             };
         }
     }
 }
 
 export {};
-
